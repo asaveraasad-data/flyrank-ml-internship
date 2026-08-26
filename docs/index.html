@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Identifying Declining Content for Editorial Review</title>
+
+<meta name="description"
+      content="A research paper on ranking declining content for editorial review using search-performance and freshness signals on anonymized FlyRank data.">
+
+<style>
+
+/* =========================================================
+   RESET + VARIABLES
+========================================================= */
+
+:root {
+    --paper: #f7f6f2;
+    --surface: #ffffff;
+    --ink: #171717;
+    --muted: #6d6b67;
+    --faint: #99958d;
+    --line: #dedbd3;
+
+    --accent: #d94b32;
+    --accent-dark: #a93624;
+    --accent-soft: #f5e4df;
+
+    --green: #286b55;
+    --green-soft: #e5f0eb;
+
+    --max-width: 1180px;
+    --reading-width: 780px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    line-height: 1.7;
+}
+
+img {
+    max-width: 100%;
+}
+
+a {
+    color: inherit;
+}
+
+
+/* =========================================================
+   GLOBAL LAYOUT
+========================================================= */
+
+.page {
+    width: min(100%, var(--max-width));
+    margin: 0 auto;
+    background: var(--surface);
+}
+
+.container {
+    width: min(100% - 64px, 1040px);
+    margin: 0 auto;
+}
+
+.reading-width {
+    max-width: var(--reading-width);
+}
+
+section {
+    padding: 100px 0;
+    border-top: 1px solid var(--line);
+}
+
+
+/* =========================================================
+   TOP NAV
+========================================================= */
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(12px);
+
+    border-bottom: 1px solid var(--line);
+}
+
+.topbar-inner {
+    width: min(100% - 64px, 1040px);
+    margin: 0 auto;
+
+    min-height: 58px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.brand {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.nav {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+    display: none;
+}
+
+.nav a {
+    color: var(--muted);
+    text-decoration: none;
+    white-space: nowrap;
+    font-size: 0.78rem;
+}
+
+.nav a:hover {
+    color: var(--accent);
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    padding: 100px 0 70px;
+}
+
+.kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    color: var(--accent);
+
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.kicker::before {
+    content: "";
+    display: block;
+    width: 26px;
+    height: 2px;
+    background: var(--accent);
+}
+
+h1 {
+    max-width: 980px;
+
+    margin: 24px 0 24px;
+
+    font-size: clamp(2.8rem, 7vw, 6rem);
+    line-height: 0.98;
+    letter-spacing: -0.065em;
+    font-weight: 850;
+}
+
+.hero-subtitle {
+    max-width: 760px;
+
+    margin: 0 0 32px;
+
+    color: var(--muted);
+
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    line-height: 1.6;
+}
+
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+
+    padding-top: 24px;
+
+    border-top: 1px solid var(--line);
+
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.meta strong {
+    color: var(--ink);
+}
+
+
+/* =========================================================
+   ABSTRACT
+========================================================= */
+
+.abstract {
+    margin-top: 60px;
+
+    padding: 34px 38px;
+
+    background: var(--accent-soft);
+
+    border-left: 5px solid var(--accent);
+}
+
+.abstract-label {
+    margin-bottom: 15px;
+
+    color: var(--accent-dark);
+
+    font-size: 0.75rem;
+    font-weight: 850;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.abstract p {
+    margin: 0;
+
+    font-size: 1.04rem;
+    line-height: 1.8;
+}
+
+
+/* =========================================================
+   SECTION HEADERS
+========================================================= */
+
+.section-header {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 28px;
+
+    margin-bottom: 45px;
+}
+
+.section-number {
+    color: var(--accent);
+
+    font-size: 0.8rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+}
+
+.section-title {
+    margin: 0;
+
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+}
+
+.section-intro {
+    margin: 14px 0 0;
+
+    color: var(--muted);
+
+    font-size: 1.05rem;
+}
+
+
+/* =========================================================
+   TYPOGRAPHY
+========================================================= */
+
+h3 {
+    margin: 44px 0 13px;
+
+    font-size: 1.18rem;
+    letter-spacing: -0.01em;
+}
+
+p {
+    margin: 0 0 18px;
+}
+
+ul,
+ol {
+    padding-left: 22px;
+}
+
+li {
+    margin: 9px 0;
+}
+
+strong {
+    font-weight: 750;
+}
+
+code {
+    padding: 3px 6px;
+
+    border-radius: 4px;
+
+    background: #f0eee9;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
+    font-size: 0.88em;
+}
+
+
+/* =========================================================
+   EVIDENCE STRIP
+========================================================= */
+
+.evidence-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+
+    margin: 30px 0 0;
+}
+
+.evidence-item {
+    padding: 26px 20px;
+
+    border-right: 1px solid var(--line);
+}
+
+.evidence-item:last-child {
+    border-right: none;
+}
+
+.evidence-number {
+    display: block;
+
+    font-size: clamp(1.8rem, 4vw, 2.7rem);
+    font-weight: 850;
+    letter-spacing: -0.05em;
+    line-height: 1;
+}
+
+.evidence-label {
+    display: block;
+
+    margin-top: 8px;
+
+    color: var(--muted);
+
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+
+/* =========================================================
+   CALLOUT
+========================================================= */
+
+.callout {
+    margin: 30px 0;
+    padding: 25px 27px;
+
+    background: #faf9f6;
+
+    border: 1px solid var(--line);
+}
+
+.callout.accent {
+    background: var(--accent-soft);
+    border-color: #e6b9ae;
+}
+
+.callout.green {
+    background: var(--green-soft);
+    border-color: #c6ddd3;
+}
+
+.callout-label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   FEATURE GRID
+========================================================= */
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+
+    gap: 1px;
+
+    margin-top: 30px;
+
+    background: var(--line);
+
+    border: 1px solid var(--line);
+}
+
+.feature {
+    padding: 24px;
+
+    background: var(--surface);
+}
+
+.feature code {
+    display: inline-block;
+
+    margin-bottom: 10px;
+}
+
+.feature p {
+    margin: 0;
+
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+
+/* =========================================================
+   METRIC CARDS
+========================================================= */
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 12px;
+
+    margin: 35px 0 45px;
+}
+
+.metric {
+    padding: 28px;
+
+    border: 1px solid var(--line);
+
+    background: #fcfbf8;
+}
+
+.metric-label {
+    display: block;
+
+    margin-bottom: 14px;
+
+    color: var(--muted);
+
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.metric strong {
+    display: block;
+
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1;
+
+    letter-spacing: -0.05em;
+}
+
+.metric small {
+    display: block;
+
+    margin-top: 12px;
+
+    color: var(--muted);
+
+    font-size: 0.82rem;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap {
+    overflow-x: auto;
+
+    margin: 30px 0;
+}
+
+table {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    font-size: 0.93rem;
+}
+
+th,
+td {
+    padding: 14px 15px;
+
+    border-bottom: 1px solid var(--line);
+
+    text-align: left;
+}
+
+th {
+    background: #f7f5f0;
+
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+td strong {
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   FIGURES
+========================================================= */
+
+.figure {
+    margin: 50px 0 60px;
+}
+
+.figure-frame {
+    padding: 14px;
+
+    background: #fafafa;
+
+    border: 1px solid var(--line);
+}
+
+.figure-frame img {
+    display: block;
+
+    width: 100%;
+    height: auto;
+}
+
+.caption {
+    margin-top: 13px;
+
+    color: var(--muted);
+
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+.takeaway {
+    margin-top: 7px;
+
+    color: var(--ink);
+
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   VALIDATION SPLIT GRID
+========================================================= */
+
+.split-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+
+    margin: 30px 0;
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.split {
+    padding: 20px 14px;
+
+    border-right: 1px solid var(--line);
+}
+
+.split:last-child {
+    border-right: none;
+}
+
+.split-number {
+    display: block;
+
+    color: var(--muted);
+
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.split-value {
+    display: block;
+
+    margin-top: 7px;
+
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.split-baseline {
+    display: block;
+
+    margin-top: 4px;
+
+    color: var(--muted);
+
+    font-size: 0.78rem;
+}
+
+
+/* =========================================================
+   RECOMMENDATION FLOW
+========================================================= */
+
+.flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+
+    margin: 35px 0;
+
+    border: 1px solid var(--line);
+}
+
+.flow-step {
+    position: relative;
+
+    padding: 25px 18px;
+
+    border-right: 1px solid var(--line);
+}
+
+.flow-step:last-child {
+    border-right: none;
+}
+
+.flow-number {
+    display: block;
+
+    margin-bottom: 10px;
+
+    color: var(--accent);
+
+    font-size: 0.7rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+}
+
+.flow-step strong {
+    display: block;
+
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+
+/* =========================================================
+   REPRODUCIBILITY LINKS
+========================================================= */
+
+.links {
+    margin: 30px 0;
+
+    border-top: 1px solid var(--line);
+}
+
+.links a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 17px 0;
+
+    border-bottom: 1px solid var(--line);
+
+    color: var(--ink);
+
+    text-decoration: none;
+}
+
+.links a:hover {
+    color: var(--accent);
+}
+
+.links span:last-child {
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+    padding: 60px 0 70px;
+
+    border-top: 1px solid var(--line);
+
+    color: var(--muted);
+
+    font-size: 0.85rem;
+}
+
+.footer strong {
+    color: var(--ink);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 850px) {
+
+    .container,
+    .topbar-inner {
+        width: min(100% - 40px, 1040px);
+    }
+
+    .hero {
+        padding-top: 70px;
+    }
+
+    section {
+        padding: 70px 0;
+    }
+
+    .section-header {
+        grid-template-columns: 60px 1fr;
+        gap: 18px;
+    }
+
+    .evidence-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .evidence-item:nth-child(2) {
+        border-right: none;
+    }
+
+    .evidence-item:nth-child(-n+2) {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .split-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .split {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .split:nth-child(2n) {
+        border-right: none;
+    }
+
+    .flow {
+        grid-template-columns: 1fr;
+    }
+
+    .flow-step {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .flow-step:last-child {
+        border-bottom: none;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .container,
+    .topbar-inner {
+        width: min(100% - 30px, 1040px);
+    }
+
+    .nav {
+        display: none;
+    }
+
+    .hero {
+        padding: 55px 0 45px;
+    }
+
+    h1 {
+        font-size: 2.65rem;
+    }
+
+    .abstract {
+        padding: 24px 20px;
+    }
+
+    .section-header {
+        display: block;
+    }
+
+    .section-number {
+        margin-bottom: 10px;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .evidence-strip {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .evidence-item {
+        padding: 20px 15px;
+    }
+
+    .split-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .split {
+        border-right: none;
+    }
+
+    .meta {
+        flex-direction: column;
+        gap: 7px;
+    }
+}
+
+</style>
+</head>
+
+
+<body>
+
+<div class="page">
+
+
+<!-- =====================================================
+     NAVIGATION
+===================================================== -->
+
+<nav class="topbar">
+    <div class="topbar-inner">
+
+        <div class="brand">
+            FlyRank · ML Research
+        </div>
+
+        <div class="nav">
+            <a href="#introduction">Problem</a>
+            <a href="#data">Data</a>
+            <a href="#methodology">Method</a>
+            <a href="#results">Results</a>
+            <a href="#limitations">Limits</a>
+            <a href="#recommendations">Recommendations</a>
+            <a href="#reproducibility">Reproduce</a>
+        </div>
+
+    </div>
+</nav>
+
+
+
+<!-- =====================================================
+     HERO
+===================================================== -->
+
+<header class="hero">
+
+    <div class="container">
+
+        <div class="kicker">
+            FlyRank ML Internship · Research Paper
+        </div>
+
+        <h1>
+            Identifying Declining Content for Editorial Review
+        </h1>
+
+        <p class="hero-subtitle">
+            Can observable search-performance and freshness signals help
+            editors decide which pages deserve attention first?
+        </p>
+
+        <div class="meta">
+
+            <span>
+                <strong>Author:</strong>
+                Asavera
+            </span>
+
+            <span>
+                <strong>Date:</strong>
+                25 August 2026
+            </span>
+
+            <span>
+                <strong>Lane:</strong>
+                Refresh / Content Opportunity Scoring
+            </span>
+
+        </div>
+
+
+        <!-- ABSTRACT -->
+
+        <div class="abstract">
+
+            <div class="abstract-label">
+                Abstract
+            </div>
+
+            <p>
+                This study asks whether observable search-performance and
+                content-freshness signals can identify content items that are
+                most likely to be declining, helping editors prioritize pages
+                for review. Using an anonymized FlyRank dataset containing
+                <strong>30,000 content items</strong>, the analysis uses
+                impressions, content age, average search position, CTR, and
+                time since last update while excluding label-derived fields
+                to avoid leakage. A Random Forest classifier was compared
+                with a transparent baseline using PR-AUC and Precision@K
+                under client-level grouped validation. On the primary
+                evaluation split, Random Forest improved PR-AUC from
+                <strong>0.5237 to 0.6064</strong> and Precision@25 from
+                <strong>0.76 to 0.84</strong>, but Precision@25 varied from
+                <strong>0.48 to 1.00</strong> across five validation splits.
+                The resulting ranked queue is intended as
+                <strong>decision support for editorial prioritization</strong>,
+                not as proof of future decline, a causal explanation of
+                performance, or an automatic instruction to refresh content.
+            </p>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<!-- =====================================================
+     EVIDENCE STRIP
+===================================================== -->
+
+<div class="container">
+
+    <div class="evidence-strip">
+
+        <div class="evidence-item">
+            <span class="evidence-number">30K</span>
+            <span class="evidence-label">
+                content items analyzed
+            </span>
+        </div>
+
+        <div class="evidence-item">
+            <span class="evidence-number">5</span>
+            <span class="evidence-label">
+                final observable model signals
+            </span>
+        </div>
+
+        <div class="evidence-item">
+            <span class="evidence-number">0.6064</span>
+            <span class="evidence-label">
+                primary-split PR-AUC
+            </span>
+        </div>
+
+        <div class="evidence-item">
+            <span class="evidence-number">200</span>
+            <span class="evidence-label">
+                pages in the final review queue
+            </span>
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     1. INTRODUCTION
+===================================================== -->
+
+<section id="introduction">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            01
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Introduction / Problem
+            </h2>
+
+            <p class="section-intro">
+                The operational question is not "which page will fail?"
+                It is "where should an editor look first?"
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <p>
+            Content teams can face a simple operational problem:
+            there may be many pages to review, but limited editorial
+            capacity. Reviewing every page equally makes it difficult
+            to decide where attention should go first.
+        </p>
+
+        <p>
+            This project asks whether observable search-performance
+            and content-freshness signals can be used to rank content
+            items by their likelihood of appearing in a declining state.
+            The decision supported by the analysis is therefore
+            <strong>which pages an editor should review first</strong>,
+            rather than whether a page should automatically be changed.
+        </p>
+
+        <p>
+            The output is a ranked content-review queue. A human editor
+            can use that ranking and the associated reason codes to focus
+            attention on higher-priority items, while still checking
+            business context, search intent, factual accuracy, and
+            content quality before taking action.
+        </p>
+
+    </div>
+
+
+    <div class="callout accent">
+
+        <span class="callout-label">
+            Decision supported
+        </span>
+
+        <strong>
+            Prioritize editorial attention — not automate the editorial decision.
+        </strong>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     2. DATA
+===================================================== -->
+
+<section id="data">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            02
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Data
+            </h2>
+
+            <p class="section-intro">
+                The model works with observable search, engagement,
+                content-age, freshness, and trend signals.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <p>
+            The analysis uses the anonymized FlyRank
+            content-performance dataset provided for the internship
+            capstone:
+            <code>data/raw/content_refresh_anonymized.csv</code>.
+        </p>
+
+        <p>
+            The supplied file contains
+            <strong>30,000 content items and 44 columns</strong>.
+            The available fields span search performance, engagement,
+            content characteristics, freshness, and trend signals.
+        </p>
+
+    </div>
+
+
+    <h3>Final model features</h3>
+
+
+    <div class="feature-grid">
+
+        <div class="feature">
+            <code>impressions_90d</code>
+            <p>
+                Observed search impressions over the 90-day window.
+            </p>
+        </div>
+
+        <div class="feature">
+            <code>content_age_days</code>
+            <p>
+                Age of the content item.
+            </p>
+        </div>
+
+        <div class="feature">
+            <code>avg_position</code>
+            <p>
+                Average observed search position.
+            </p>
+        </div>
+
+        <div class="feature">
+            <code>ctr</code>
+            <p>
+                Observed click-through rate.
+            </p>
+        </div>
+
+        <div class="feature">
+            <code>days_since_last_update</code>
+            <p>
+                Time since the content was last updated.
+            </p>
+        </div>
+
+        <div class="feature">
+            <strong>Excluded fields</strong>
+            <p>
+                Label-derived trend fields and pseudonymous IDs were
+                deliberately excluded from predictive features.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="callout">
+
+        <span class="callout-label">
+            Leakage control
+        </span>
+
+        <p>
+            <code>trend_direction</code> and <code>trend_pct</code>
+            are excluded because they are used to derive the target.
+            Including them would leak information about the label into
+            the model.
+        </p>
+
+        <p style="margin-bottom:0;">
+            <code>content_id</code> and <code>client_id</code> are used
+            for identification/grouping rather than as predictive
+            features.
+        </p>
+
+    </div>
+
+
+    <div class="callout green">
+
+        <span class="callout-label">
+            Public-safety note
+        </span>
+
+        <p style="margin-bottom:0;">
+            The analysis does not use client names, domains, page URLs,
+            private queries, credentials, or other client-identifying
+            information. The supplied CSV does not expose an explicit
+            release identifier, table name, or calendar date field, so
+            this paper does not claim a specific release or date window
+            that cannot be verified from the supplied material.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     3. METHODOLOGY
+===================================================== -->
+
+<section id="methodology">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            03
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Methodology
+            </h2>
+
+            <p class="section-intro">
+                A transparent baseline first, then a learned ranking
+                model with grouped validation and leakage checks.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <h3>Target definition</h3>
+
+        <p>
+            The target is
+            <code>is_declining_label</code>, defined as whether
+            <code>trend_direction == "down"</code>.
+        </p>
+
+
+        <h3>Baseline and model</h3>
+
+        <p>
+            The analysis first established a transparent baseline
+            ranking and then compared a learned model against it on
+            the same ranking task.
+        </p>
+
+        <p>
+            The final learned model is a
+            <strong>Random Forest classifier</strong>.
+        </p>
+
+
+        <h3>Validation design</h3>
+
+        <p>
+            Evaluation uses client-level grouping so that pages from
+            the same client are not simply mixed between training and
+            evaluation.
+        </p>
+
+        <p>
+            Performance is measured using
+            <strong>PR-AUC</strong> and
+            <strong>Precision@K</strong>, with the baseline evaluated
+            on the same ranking task.
+        </p>
+
+    </div>
+
+
+    <div class="callout accent">
+
+        <span class="callout-label">
+            Why grouped validation?
+        </span>
+
+        <p style="margin-bottom:0;">
+            If pages from the same client appeared freely in both
+            training and evaluation, performance could look stronger
+            than it would when ranking content for a previously unseen
+            client. Grouping by client provides a stricter test of
+            generalization across client-level partitions.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     4. RESULTS
+===================================================== -->
+
+<section id="results">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            04
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Results
+            </h2>
+
+            <p class="section-intro">
+                The model improved on the primary evaluation split,
+                but the advantage was not stable across every client split.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- KEY METRICS -->
+
+    <div class="metrics">
+
+        <div class="metric">
+
+            <span class="metric-label">
+                PR-AUC
+            </span>
+
+            <strong>
+                0.6064
+            </strong>
+
+            <small>
+                baseline: 0.5237 · +0.0827
+            </small>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Precision@25
+            </span>
+
+            <strong>
+                0.84
+            </strong>
+
+            <small>
+                baseline: 0.76 · +0.08
+            </small>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Declining base rate
+            </span>
+
+            <strong>
+                54.21%
+            </strong>
+
+            <small>
+                16,262 of 30,000 items
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="callout">
+
+        <span class="callout-label">
+            Base rate
+        </span>
+
+        <p style="margin-bottom:0;">
+            <strong>16,262 of 30,000 content items were labeled
+            declining (54.21%).</strong>
+            This base rate provides context for interpreting
+            Precision@K.
+        </p>
+
+    </div>
+
+
+    <h3>Random Forest vs. baseline</h3>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Baseline</th>
+                    <th>Random Forest</th>
+                    <th>Absolute change</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>PR-AUC</td>
+                    <td>0.5237</td>
+                    <td><strong>0.6064</strong></td>
+                    <td>+0.0827</td>
+                </tr>
+
+                <tr>
+                    <td>Precision@25</td>
+                    <td>0.76</td>
+                    <td><strong>0.84</strong></td>
+                    <td>+0.08</td>
+                </tr>
+
+                <tr>
+                    <td>Precision@50</td>
+                    <td>0.66</td>
+                    <td><strong>0.76</strong></td>
+                    <td>+0.10</td>
+                </tr>
+
+                <tr>
+                    <td>Precision@100</td>
+                    <td>0.61</td>
+                    <td><strong>0.73</strong></td>
+                    <td>+0.12</td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- CHART 1 -->
+
+    <figure class="figure">
+
+        <div class="figure-frame">
+
+            <img
+                src="images/model_vs_baseline.png"
+                alt="Random Forest versus baseline precision comparison">
+        </div>
+
+        <figcaption class="caption">
+
+            <strong>Figure 1.</strong>
+            Random Forest vs. baseline ranking performance on the
+            primary evaluation split.
+
+            <div class="takeaway">
+                Takeaway: Precision@25 increased from
+                <strong>0.76 to 0.84</strong>, an absolute improvement
+                of 0.08 on the primary evaluation split.
+            </div>
+
+        </figcaption>
+
+    </figure>
+
+
+
+    <!-- VALIDATION -->
+
+    <h3>
+        Validation variability
+    </h3>
+
+    <p class="reading-width">
+        The primary split does not tell the whole story. Across five
+        client-level validation splits, Random Forest Precision@25
+        ranged from <strong>0.48 to 1.00</strong>.
+    </p>
+
+
+    <div class="split-grid">
+
+        <div class="split">
+            <span class="split-number">Split 01</span>
+            <span class="split-value">0.84</span>
+            <span class="split-baseline">Baseline: 0.76</span>
+        </div>
+
+        <div class="split">
+            <span class="split-number">Split 02</span>
+            <span class="split-value">1.00</span>
+            <span class="split-baseline">Baseline: 0.76</span>
+        </div>
+
+        <div class="split">
+            <span class="split-number">Split 03</span>
+            <span class="split-value">0.48</span>
+            <span class="split-baseline">Baseline: 0.80</span>
+        </div>
+
+        <div class="split">
+            <span class="split-number">Split 04</span>
+            <span class="split-value">0.60</span>
+            <span class="split-baseline">Baseline: 0.32</span>
+        </div>
+
+        <div class="split">
+            <span class="split-number">Split 05</span>
+            <span class="split-value">0.68</span>
+            <span class="split-baseline">Baseline: 0.28</span>
+        </div>
+
+    </div>
+
+
+    <!-- CHART 2 -->
+
+    <figure class="figure">
+
+        <div class="figure-frame">
+
+            <img
+                src="images/validation_variability.png"
+                alt="Random Forest and baseline Precision at 25 across five client-level validation splits">
+
+        </div>
+
+        <figcaption class="caption">
+
+            <strong>Figure 2.</strong>
+            Precision@25 across five client-level validation splits.
+
+            <div class="takeaway">
+                Takeaway: Random Forest is not consistently above the
+                baseline; it falls below the baseline on split 3.
+            </div>
+
+        </figcaption>
+
+    </figure>
+
+
+
+    <!-- ACTION QUEUE -->
+
+    <h3>
+        Final editorial queue
+    </h3>
+
+    <p class="reading-width">
+        The Week 7 action playbook converted the ranked output into
+        a practical queue containing <strong>200 pages</strong>.
+    </p>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Suggested action</th>
+                    <th>Pages</th>
+                    <th>Share</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>
+                        Refresh + CTR Review
+                    </td>
+                    <td><strong>130</strong></td>
+                    <td>65.0%</td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Refresh
+                    </td>
+                    <td><strong>35</strong></td>
+                    <td>17.5%</td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Refresh + Engagement Review
+                    </td>
+                    <td><strong>35</strong></td>
+                    <td>17.5%</td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- CHART 3 -->
+
+    <figure class="figure">
+
+        <div class="figure-frame">
+
+            <img
+                src="images/action_distribution.png"
+                alt="Distribution of editorial actions across the 200-page recommendation queue">
+
+        </div>
+
+        <figcaption class="caption">
+
+            <strong>Figure 3.</strong>
+            Week 7 editorial action distribution.
+
+            <div class="takeaway">
+                Takeaway: <strong>65%</strong> of the queue was assigned
+                to Refresh + CTR Review, while the remaining pages were
+                split evenly between Refresh and Refresh + Engagement Review.
+            </div>
+
+        </figcaption>
+
+    </figure>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     5. LIMITATIONS
+===================================================== -->
+
+<section id="limitations">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            05
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Limitations &amp; Honest Framing
+            </h2>
+
+            <p class="section-intro">
+                The strongest result is useful, but it is not universal.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <ol>
+
+            <li>
+                <strong>Validation variability.</strong>
+                Random Forest performance varied across client-level
+                validation splits and should not be treated as guaranteed
+                to outperform the baseline for every client or future dataset.
+            </li>
+
+            <li>
+                <strong>Limited feature set.</strong>
+                The final model uses five observable signals. Other factors
+                that may affect content performance are not represented.
+            </li>
+
+            <li>
+                <strong>Historical observations.</strong>
+                The analysis evaluates observed historical data. It does
+                not establish that a page will decline in the future or
+                that a content refresh will improve performance.
+            </li>
+
+            <li>
+                <strong>No causal claim.</strong>
+                A high declining probability identifies content that resembles
+                previously declining content. It does not prove why a page
+                is declining or that a particular edit will fix it.
+            </li>
+
+            <li>
+                <strong>Dataset representativeness.</strong>
+                The 30,000-row anonymized dataset may not represent every
+                FlyRank client, content type, or future search environment.
+            </li>
+
+            <li>
+                <strong>Recommendation uncertainty.</strong>
+                The final queue is a prioritization aid and requires
+                human review before editorial action.
+            </li>
+
+        </ol>
+
+    </div>
+
+
+    <div class="callout accent">
+
+        <span class="callout-label">
+            Strongest supported claim
+        </span>
+
+        <p style="margin-bottom:0;">
+            On the evaluated data, Random Forest produced stronger ranking
+            performance than the baseline on the primary evaluation split
+            and generated a ranked queue that can help prioritize editorial
+            review. Substantial variation across client-level validation
+            splits means the recommendations remain directional and subject
+            to human judgment.
+        </p>
+
+    </div>
+
+
+    <div class="callout">
+
+        <span class="callout-label">
+            What this study does not claim
+        </span>
+
+        <p style="margin-bottom:0;">
+            It does not predict Google's algorithm, prove that a page
+            will decline, explain the causal reason for a decline, or
+            establish that refreshing a page will increase traffic or rankings.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     6. RANKED RECOMMENDATIONS
+===================================================== -->
+
+<section id="recommendations">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            06
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Ranked Recommendations
+            </h2>
+
+            <p class="section-intro">
+                The model's practical output is a review queue, not
+                an automatic content-change command.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <p>
+            The final stage converts the model ranking into a practical
+            editorial review queue. Rather than automatically changing
+            content, the system identifies pages that should receive
+            attention first and provides reason codes to help editors
+            understand the signals behind each recommendation.
+        </p>
+
+    </div>
+
+
+    <div class="flow">
+
+        <div class="flow-step">
+            <span class="flow-number">01</span>
+            <strong>Model ranking</strong>
+        </div>
+
+        <div class="flow-step">
+            <span class="flow-number">02</span>
+            <strong>Review reason codes</strong>
+        </div>
+
+        <div class="flow-step">
+            <span class="flow-number">03</span>
+            <strong>Human page review</strong>
+        </div>
+
+        <div class="flow-step">
+            <span class="flow-number">04</span>
+            <strong>Editorial decision</strong>
+        </div>
+
+        <div class="flow-step">
+            <span class="flow-number">05</span>
+            <strong>Monitor outcome</strong>
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <ol>
+
+            <li>
+                Start with the highest-ranked content items.
+            </li>
+
+            <li>
+                Review the reason codes and underlying
+                search-performance signals.
+            </li>
+
+            <li>
+                Check the page manually for search intent,
+                factual accuracy, outdated information, and content quality.
+            </li>
+
+            <li>
+                Decide whether a refresh is actually appropriate.
+            </li>
+
+            <li>
+                Monitor the page after any editorial change.
+            </li>
+
+        </ol>
+
+    </div>
+
+
+    <div class="callout green">
+
+        <span class="callout-label">
+            Highest-confidence use
+        </span>
+
+        <strong>
+            Prioritization.
+        </strong>
+
+        <p style="margin:8px 0 0;">
+            The system is most defensible as a way to decide
+            <em>where to look first</em>, while leaving the final
+            editorial decision to a human.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     7. REPRODUCIBILITY
+===================================================== -->
+
+<section id="reproducibility">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            07
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Reproducibility
+            </h2>
+
+            <p class="section-intro">
+                The paper is backed by the internship notebook sequence
+                and the project repository.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <p>
+            The analysis was developed as a sequence of notebooks in
+            the FlyRank ML Internship repository. The capstone combines
+            the outputs of the earlier stages into a workflow covering
+            research framing, data checks, baseline development,
+            modeling, validation, and recommendation generation.
+        </p>
+
+    </div>
+
+
+    <div class="links">
+
+        <a href="https://github.com/asaveraasad-data/flyrank-ml-internship/blob/main/work/notebooks/capstone.ipynb"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <span>Capstone notebook</span>
+            <span>↗</span>
+
+        </a>
+
+
+        <a href="https://github.com/asaveraasad-data/flyrank-ml-internship/blob/main/work/notebooks/w05_model.ipynb"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <span>Week 5 · Model</span>
+            <span>↗</span>
+
+        </a>
+
+
+        <a href="https://github.com/asaveraasad-data/flyrank-ml-internship/blob/main/work/notebooks/w06_validation_audit.ipynb"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <span>Week 6 · Validation audit</span>
+            <span>↗</span>
+
+        </a>
+
+
+        <a href="https://github.com/asaveraasad-data/flyrank-ml-internship/blob/main/work/notebooks/w07_action_playbook.ipynb"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <span>Week 7 · Action playbook</span>
+            <span>↗</span>
+
+        </a>
+
+
+        <a href="https://github.com/asaveraasad-data/flyrank-ml-internship"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <span>Full project repository</span>
+            <span>↗</span>
+
+        </a>
+
+    </div>
+
+
+    <div class="callout">
+
+        <span class="callout-label">
+            Reproduction note
+        </span>
+
+        <p>
+            The source dataset used by the notebooks is
+            <code>data/raw/content_refresh_anonymized.csv</code>.
+            The capstone records the final feature set, target definition,
+            evaluation metrics, validation splits, and recommendation output.
+        </p>
+
+        <p style="margin-bottom:0;">
+            The capstone material supplied for this paper does not document
+            a single random seed or pinned environment specification, so this
+            paper does not claim bit-for-bit deterministic reproduction.
+            The notebooks provide the inspectable workflow and reported
+            evaluation outputs.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     8. ACKNOWLEDGMENTS
+===================================================== -->
+
+<section id="acknowledgments">
+
+<div class="container">
+
+    <div class="section-header">
+
+        <div class="section-number">
+            08
+        </div>
+
+        <div>
+            <h2 class="section-title">
+                Acknowledgments &amp; Data Credit
+            </h2>
+
+            <p class="section-intro">
+                This analysis was completed using the dataset provided
+                through the FlyRank ML Internship.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="reading-width">
+
+        <div class="callout accent">
+
+            <span class="callout-label">
+                Data credit
+            </span>
+
+            <p>
+                <strong>
+                    Built on the FlyRank ML Internship dataset.
+                </strong>
+            </p>
+
+            <p style="margin-bottom:0;">
+                Data source:
+                <a
+                    href="https://flyrank.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="color:var(--accent);font-weight:750;">
+                    FlyRank ↗
+                </a>
+            </p>
+
+        </div>
+
+
+        <p>
+            This project was completed as part of the FlyRank ML Internship.
+            The analysis is intended for educational and decision-support
+            purposes.
+        </p>
+
+        <p>
+            No client-identifying information, private queries, domains,
+            or credentials are included in this paper.
+        </p>
+
+    </div>
+
+</div>
+
+</section>
+
+
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
+<footer class="footer">
+
+<div class="container">
+
+    <p>
+        <strong>
+            Identifying Declining Content for Editorial Review
+        </strong>
+    </p>
+
+    <p>
+        Author: Asavera · 25 August 2026
+    </p>
+
+    <p>
+        FlyRank ML Internship · Refresh / Content Opportunity Scoring
+    </p>
+
+    <p style="margin-top:30px;">
+        Research artifact built from anonymized search-performance data.
+    </p>
+
+</div>
+
+</footer>
+
+
+</div>
+
+</body>
+</html>
